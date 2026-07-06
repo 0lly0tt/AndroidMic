@@ -68,4 +68,8 @@
     <string name="stop_streaming">Stop streaming</string>
     <string name="stop_recording">Stop recording</string>
 
+
+    <string name="mute">Mute</string>
+    <string name="unmute">Unmute</string>
+
 </resources>

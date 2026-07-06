@@ -22,6 +22,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 
 
 data class ServiceStates(
@@ -37,9 +38,18 @@ const val WAIT_PERIOD = 500L
 
 const val BIND_SERVICE_ACTION = "BIND_SERVICE_ACTION"
 const val STOP_STREAM_ACTION = "STOP_STREAM_ACTION"
+const val MUTE_ACTION = "MUTE_ACTION"
+const val UNMUTE_ACTION = "UNMUTE_ACTION"
 
 class ForegroundService : Service() {
     private val scope = CoroutineScope(Dispatchers.Default)
+
+    fun updateNotification() {
+        val notificationManager =
+            getSystemService(NotificationManager::class.java)
+        val notification = messageui.getNotification(states.isMuted)
+        notificationManager.notify(NOTIF_ID, notification)
+    }
 
     private inner class ServiceHandler(looper: Looper) : Handler(looper) {
         override fun handleMessage(msg: Message) {
@@ -57,11 +67,13 @@ class ForegroundService : Service() {
                 Command.Mute -> {
                     states.isMuted = true
                     managerAudio?.mute()
+                    updateNotification()
                 }
 
                 Command.Unmute -> {
                     states.isMuted = false
                     managerAudio?.unmute()
+                    updateNotification()
                 }
             }
 
@@ -136,6 +148,20 @@ class ForegroundService : Service() {
                 serviceShouldStop = false
             }
 
+            MUTE_ACTION -> {
+                states.isMuted = true
+                managerAudio?.mute()
+                updateNotification()
+                reply(uiMessenger, ResponseData(isMuted = true))
+            }
+
+            UNMUTE_ACTION -> {
+                states.isMuted = false
+                managerAudio?.unmute()
+                updateNotification()
+                reply(uiMessenger, ResponseData(isMuted = false))
+            }
+
             else -> {
                 Log.w(TAG, "unknown action for onStartCommand")
             }
@@ -154,7 +180,7 @@ class ForegroundService : Service() {
             // (Service is not destroy when the screen rotate)
             serviceShouldStop = true
             scope.launch {
-                delay(3000L)
+                delay(3000.milliseconds)
                 if (serviceShouldStop)
                     stopService()
             }
@@ -325,11 +351,10 @@ class ForegroundService : Service() {
 
         managerAudio?.start()
 
-        // the id is not important here
         // we need to start in foreground to use the mic
-        // but no need to specified a flag because we declared
+        // but no need to specify a flag because we declared
         // the type in manifest
-        startForeground(3, messageui.getNotification())
+        startForeground(NOTIF_ID, messageui.getNotification(states.isMuted))
 
         Log.d(TAG, "startAudio [recording]")
         states.isAudioStarted = true

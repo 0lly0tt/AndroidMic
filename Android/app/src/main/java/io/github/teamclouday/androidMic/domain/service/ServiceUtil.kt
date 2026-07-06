@@ -14,6 +14,8 @@ import kotlinx.coroutines.launch
 
 const val CHANNEL_ID = "Service"
 
+const val NOTIF_ID = 3
+
 class MessageUi(private val ctx: ForegroundService) {
     // show message on UI
     fun showMessage(message: String) {
@@ -23,7 +25,7 @@ class MessageUi(private val ctx: ForegroundService) {
     }
 
 
-    fun getNotification(): Notification {
+    fun getNotification(isMuted: Boolean): Notification {
         // launch activity
         val launchIntent = Intent(ctx, MainActivity::class.java).apply {
             flags =
@@ -33,11 +35,14 @@ class MessageUi(private val ctx: ForegroundService) {
             PendingIntent.getActivity(ctx, 0, launchIntent, PendingIntent.FLAG_IMMUTABLE)
 
 
-        val stopStreamingIntent: Intent = Intent(ctx, ForegroundService::class.java)
-            .setAction(STOP_STREAM_ACTION)
-
         val pStopStreamingIntent = PendingIntent.getService(
-            ctx, 0, stopStreamingIntent, PendingIntent.FLAG_IMMUTABLE
+            ctx, 0, Intent(ctx, ForegroundService::class.java)
+                .setAction(STOP_STREAM_ACTION), PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val pMuteIntent = PendingIntent.getService(
+            ctx, 0, Intent(ctx, ForegroundService::class.java)
+                .setAction(if (isMuted) UNMUTE_ACTION else MUTE_ACTION ), PendingIntent.FLAG_IMMUTABLE
         )
 
         val builder = NotificationCompat.Builder(ctx, CHANNEL_ID)
@@ -52,6 +57,13 @@ class MessageUi(private val ctx: ForegroundService) {
                     R.drawable.ic_launcher_foreground,
                     ctx.getString(R.string.stop_streaming),
                     pStopStreamingIntent
+                )
+            )
+            .addAction(
+                NotificationCompat.Action(
+                    R.drawable.ic_launcher_foreground,
+                    ctx.getString(if (isMuted) R.string.unmute else R.string.mute),
+                    pMuteIntent
                 )
             )
 
