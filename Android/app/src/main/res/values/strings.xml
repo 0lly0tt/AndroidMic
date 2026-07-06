@@ -13,7 +13,7 @@
     -->
     <string name="drawerHeader">Setting</string>
     <string name="drawer_subtitle_connection">Connection</string>
-    <string name="drawer_subtitle_record" translatable="false">Record</string>
+    <string name="drawer_subtitle_audio">Audio</string>
     <string name="drawer_subtitle_other">Other</string>
 
 

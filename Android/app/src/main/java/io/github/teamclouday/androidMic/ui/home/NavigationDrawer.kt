@@ -103,7 +103,7 @@ fun DrawerBody(vm: MainViewModel) {
 
 
         // Audio
-        SettingsItemsSubtitle(R.string.drawer_subtitle_record)
+        SettingsItemsSubtitle(R.string.drawer_subtitle_audio)
 
         val dialogSampleRateExpanded = rememberSaveable {
             mutableStateOf(false)
