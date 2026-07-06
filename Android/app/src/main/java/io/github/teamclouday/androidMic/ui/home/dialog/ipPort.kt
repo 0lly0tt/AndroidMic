@@ -49,7 +49,7 @@ fun DialogIpPort(vm: MainViewModel, expanded: MutableState<Boolean>, portOnly: B
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 // ip field
-                if(!portOnly) {
+                if (!portOnly) {
                     ManagerOutlinedTextField(tempIp, R.string.dialog_ip)
 
                     Spacer(modifier = Modifier.height(10.dp))

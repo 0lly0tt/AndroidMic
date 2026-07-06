@@ -22,7 +22,6 @@ private const val TAG: String = "UDP streamer"
 class UdpStreamer(private val scope: CoroutineScope, val ip: String, var port: Int) : Streamer {
 
 
-
     private val socket: DatagramSocket = DatagramSocket()
     private val address = InetAddress.getByName(ip)
     private var streamJob: Job? = null

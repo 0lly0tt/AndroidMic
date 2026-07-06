@@ -15,6 +15,7 @@ import io.github.teamclouday.androidMic.ui.utils.rememberWindowInfo
 import io.github.teamclouday.androidMic.utils.ignore
 
 private const val TAG = "MainActivity"
+
 class MainActivity : ComponentActivity() {
 
     val vm: MainViewModel by viewModels()
