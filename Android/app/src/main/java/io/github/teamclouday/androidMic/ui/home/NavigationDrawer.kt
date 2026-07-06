@@ -1,5 +1,6 @@
 package io.github.teamclouday.androidMic.ui.home
 
+import android.content.ClipData
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,14 +21,17 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewModelScope
 import io.github.teamclouday.androidMic.Mode
 import io.github.teamclouday.androidMic.R
 import io.github.teamclouday.androidMic.ui.MainViewModel
@@ -38,6 +42,7 @@ import io.github.teamclouday.androidMic.ui.home.dialog.DialogIpPort
 import io.github.teamclouday.androidMic.ui.home.dialog.DialogMode
 import io.github.teamclouday.androidMic.ui.home.dialog.DialogSampleRate
 import io.github.teamclouday.androidMic.ui.home.dialog.DialogTheme
+import kotlinx.coroutines.launch
 
 
 @Composable
@@ -75,7 +80,7 @@ fun DrawerBody(vm: MainViewModel) {
             subTitle = mode.value.toString(),
             contentDescription = "set mode",
             icon = Icons.Rounded.Settings,
-            expanded = dialogModeExpanded
+            onClick = { dialogModeExpanded.value = true },
         )
 
         if (mode.value != Mode.USB) {
@@ -92,7 +97,7 @@ fun DrawerBody(vm: MainViewModel) {
                 subTitle = (if (mode.value != Mode.ADB) (vm.prefs.ip.getAsState().value + ":") else "") + vm.prefs.port.getAsState().value,
                 contentDescription = "set ip and port",
                 icon = Icons.Rounded.Wifi,
-                expanded = dialogIpPortExpanded
+                onClick = { dialogIpPortExpanded.value = true },
             )
         }
 
@@ -108,7 +113,7 @@ fun DrawerBody(vm: MainViewModel) {
             title = stringResource(id = R.string.sample_rate),
             subTitle = vm.prefs.sampleRate.getAsState().value.value.toString(),
             contentDescription = "set sample rate",
-            expanded = dialogSampleRateExpanded
+            onClick = { dialogSampleRateExpanded.value = true },
         )
 
         val dialogChannelCountExpanded = rememberSaveable {
@@ -119,7 +124,7 @@ fun DrawerBody(vm: MainViewModel) {
             title = stringResource(id = R.string.channel_count),
             subTitle = vm.prefs.channelCount.getAsState().value.getString(),
             contentDescription = "set channel count",
-            expanded = dialogChannelCountExpanded
+            onClick = { dialogChannelCountExpanded.value = true },
         )
 
         val dialogAudioFormatExpanded = rememberSaveable {
@@ -130,7 +135,7 @@ fun DrawerBody(vm: MainViewModel) {
             title = stringResource(id = R.string.audio_format),
             subTitle = vm.prefs.audioFormat.getAsState().value.toString(),
             contentDescription = "set audio format",
-            expanded = dialogAudioFormatExpanded
+            onClick = { dialogAudioFormatExpanded.value = true },
         )
 
         val dialogAudioSourceExpanded = rememberSaveable {
@@ -141,7 +146,7 @@ fun DrawerBody(vm: MainViewModel) {
             title = stringResource(id = R.string.audio_source),
             subTitle = vm.prefs.audioSource.getAsState().value.toString(),
             contentDescription = "set audio source",
-            expanded = dialogAudioSourceExpanded
+            onClick = { dialogAudioSourceExpanded.value = true },
         )
 
         // Other
@@ -156,14 +161,26 @@ fun DrawerBody(vm: MainViewModel) {
             subTitle = vm.prefs.theme.getAsState().value.toString(),
             contentDescription = "set theme",
             icon = Icons.Rounded.DarkMode,
-            expanded = dialogThemesExpanded
+            onClick = { dialogThemesExpanded.value = true },
         )
 
-        SettingsItemReadOnly(
+        val clipboard = LocalClipboard.current
+
+        val appVersion = remember {
+            vm.uiHelper.getAppVersion()
+        }
+        SettingsItem(
             title = stringResource(id = R.string.drawerVersion),
-            subTitle = vm.uiHelper.getAppVersion(),
+            subTitle = appVersion,
             contentDescription = "app version",
-            icon = Icons.Rounded.Verified
+            icon = Icons.Rounded.Verified,
+            onClick = {
+                vm.viewModelScope.launch {
+                    clipboard.setClipEntry(
+                        ClipEntry(ClipData.newPlainText("version", appVersion))
+                    )
+                }
+            }
         )
     }
 }
@@ -187,58 +204,21 @@ private fun SettingsItemsSubtitle(
     HorizontalDivider(color = MaterialTheme.colorScheme.onBackground)
 }
 
+
 @Composable
 private fun SettingsItem(
     title: String,
     subTitle: String,
     contentDescription: String,
     icon: ImageVector? = null,
-    expanded: MutableState<Boolean>
+    onClick: () -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable {
-                expanded.value = true
-            }
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        if (icon != null) {
-            Icon(
-                imageVector = icon,
-                contentDescription = contentDescription,
-                tint = MaterialTheme.colorScheme.onBackground
+            .clickable(
+                onClick = onClick
             )
-        }
-        Spacer(modifier = Modifier.width(16.dp))
-        Column {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-
-            Text(
-                text = subTitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-        }
-    }
-    HorizontalDivider(color = MaterialTheme.colorScheme.onBackground)
-}
-
-@Composable
-private fun SettingsItemReadOnly(
-    title: String,
-    subTitle: String,
-    contentDescription: String,
-    icon: ImageVector? = null
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
