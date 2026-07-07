@@ -1,21 +1,21 @@
 import com.google.protobuf.gradle.id
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.google.protobuf)
 }
 
 android {
     namespace = "io.github.teamclouday.androidMic"
-    compileSdk = 36
 
+    compileSdk {
+        version = release(37)
+    }
     defaultConfig {
         applicationId = "io.github.teamclouday.AndroidMic"
         minSdk = 23
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 24
         versionName = "2.2.8"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -72,12 +72,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_21
     }
 
-    kotlin {
-        compilerOptions {
-            // set the target JVM bytecode
-            jvmTarget.set(JvmTarget.JVM_21)
-        }
-    }
+
     buildFeatures {
         prefab = true
         compose = true
@@ -99,7 +94,11 @@ android {
 //        resources.excludes.add("google/protobuf/*.proto")
 //    }
 
-    sourceSets.getByName("main").resources.srcDir("src/main/proto")
+    sourceSets.named("main") {
+        resources {
+            directories.add(layout.projectDirectory.dir("src/main/proto").toString())
+        }
+    }
 }
 
 protobuf {
@@ -150,7 +149,6 @@ dependencies {
 
     // integration test
     androidTestImplementation(composeBom)
-    androidTestImplementation(libs.test.junit.ktx)
     androidTestImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.runner)
 }

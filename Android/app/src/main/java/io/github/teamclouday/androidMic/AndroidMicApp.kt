@@ -15,6 +15,7 @@ import kotlinx.coroutines.launch
 
 
 private const val TAG = "AndroidMicApp"
+
 class AndroidMicApp : Application() {
 
 

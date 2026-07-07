@@ -13,7 +13,7 @@
     -->
     <string name="drawerHeader">Setting</string>
     <string name="drawer_subtitle_connection">Connection</string>
-    <string name="drawer_subtitle_record" translatable="false">Record</string>
+    <string name="drawer_subtitle_audio">Audio</string>
     <string name="drawer_subtitle_other">Other</string>
 
 
@@ -67,5 +67,9 @@
     <string name="start_recording">Start recording</string>
     <string name="stop_streaming">Stop streaming</string>
     <string name="stop_recording">Stop recording</string>
+
+
+    <string name="mute">Mute</string>
+    <string name="unmute">Unmute</string>
 
 </resources>

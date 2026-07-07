@@ -10,7 +10,7 @@
     -->
     <string name="drawerHeader">设置</string>
     <string name="drawer_subtitle_connection">连接</string>
-    <string name="drawer_subtitle_record">录制</string>
+    <string name="drawer_subtitle_audio">录制</string>
     <string name="drawer_subtitle_other">其它</string>
 
 

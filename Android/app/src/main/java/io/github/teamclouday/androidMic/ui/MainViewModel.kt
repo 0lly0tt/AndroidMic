@@ -30,6 +30,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
 private const val TAG = "MainViewModel"
+
 class MainViewModel : ViewModel() {
 
     val prefs: AppPreferences = AndroidMicApp.appModule.appPreferences
@@ -187,7 +188,6 @@ class MainViewModel : ViewModel() {
             prefs.audioSource.update(audioSource)
         }
     }
-
 
 
     fun setTheme(theme: Themes) {
