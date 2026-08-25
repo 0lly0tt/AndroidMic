@@ -118,7 +118,12 @@ Item {
         path: root.socketPath
         connected: !root.mock
         parser: SplitParser { onRead: function(line) { root.handleLine(line) } }
-        onConnectedChanged: if (connected) root.logMessage("info", "connected to daemon")
+        onConnectedChanged: {
+            if (connected) {
+                root.logMessage("info", "connected to daemon")
+                Qt.callLater(function() { root.infoVisible = true })
+            }
+        }
     }
 
     // ---------- mock backend ----------
