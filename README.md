@@ -29,8 +29,11 @@ On Linux you can run the app headless with a **Quickshell**-based interface so i
 lives in your desktop's system tray (`RustApp/quickshell/`):
 
 ```sh
+# build the backend (no libxdo / GTK needed for the tray any more)
+cd RustApp && cargo build --release
+
 # headless daemon: status-notifier tray icon + Unix-socket API
-android-mic --quickshell
+./target/release/android-mic --quickshell
 
 # Quickshell GUI (info + settings dialogs), connects to the daemon
 ANDROIDMIC_QS_MOCK=1 quickshell -p RustApp/quickshell/shell.qml   # preview only

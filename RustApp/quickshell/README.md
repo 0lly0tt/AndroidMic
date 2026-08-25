@@ -47,6 +47,18 @@ quickshell -p "$PWD/shell.qml"
 
 The shell hot-reloads the `.qml`/`.js` files, so you can edit and watch live.
 
+## Build the backend (no libxdo required)
+
+Starting the tray + socket bridge for the live mode requires building the Rust
+binary with the `--quickshell` flag. On Linux this no longer needs GTK or the
+`xdo`/`libxdo` development library — the tray is a pure-D-Bus StatusNotifierItem:
+
+```sh
+cd RustApp
+cargo build --release           # links clean, no libxdo needed
+./target/release/android-mic --quickshell
+```
+
 Drop it into `~/.config/quickshell/` (as a named config sub-folder) or load it
 as an Omarchy/Quickshell plugin; it only depends on stock `QtQuick`, `QtQuick.
 Controls` and `Quickshell` modules.

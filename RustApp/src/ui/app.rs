@@ -248,6 +248,8 @@ impl AppState {
         };
 
         self.connection_state = ConnectionState::WaitingOnStatus;
+        #[cfg(target_os = "linux")]
+        self.qs_broadcast_snapshot();
 
         self.send_command(StreamerCommand::Connect {
             connect_options,
@@ -269,6 +271,9 @@ impl AppState {
         if let Some(system_tray) = self.system_tray.as_mut() {
             system_tray.update_menu_state(true, &fl!("state_disconnected"));
         }
+
+        #[cfg(target_os = "linux")]
+        self.qs_broadcast_snapshot();
 
         Task::none()
     }
