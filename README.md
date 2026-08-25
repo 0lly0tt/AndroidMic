@@ -23,6 +23,23 @@
 - **Audio processing**: Noise cancellation and audio wave visualization
 - **Customizable audio settings**: Sample rate, channels, and bit depth
 
+## Linux: system-tray + Quickshell GUI
+
+On Linux you can run the app headless with a **Quickshell**-based interface so it
+lives in your desktop's system tray (`RustApp/quickshell/`):
+
+```sh
+# headless daemon: status-notifier tray icon + Unix-socket API
+android-mic --quickshell
+
+# Quickshell GUI (info + settings dialogs), connects to the daemon
+ANDROIDMIC_QS_MOCK=1 quickshell -p RustApp/quickshell/shell.qml   # preview only
+quickshell -p RustApp/quickshell/shell.qml                        # live
+```
+
+See [`RustApp/quickshell/README.md`](RustApp/quickshell/README.md) for the
+extension, the wire protocol, and the tray submenu.
+
 ---
 
 ## ⚠️ Important Requirements
