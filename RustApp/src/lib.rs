@@ -9,5 +9,8 @@ pub mod streamer;
 pub mod ui;
 pub mod utils;
 
+#[cfg(target_os = "linux")]
+pub mod quickshell;
+
 #[macro_use]
 pub mod localize;

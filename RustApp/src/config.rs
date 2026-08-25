@@ -220,6 +220,10 @@ pub struct Args {
 
     #[arg(long, hide = true, default_value_t = false)]
     pub launched_automatically: bool,
+
+    #[cfg(target_os = "linux")]
+    #[arg(long, hide = true, default_value_t = false)]
+    pub quickshell: bool,
 }
 
 #[derive(

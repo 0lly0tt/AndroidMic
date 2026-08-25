@@ -145,6 +145,8 @@ fn main() {
         config_path: config_file_path.to_string_lossy().to_string(),
         log_path: log_file_path.to_string_lossy().to_string(),
         launched_automatically: args.launched_automatically,
+        #[cfg(target_os = "linux")]
+        quickshell: args.quickshell,
     };
 
     run_ui(flags)

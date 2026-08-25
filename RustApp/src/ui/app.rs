@@ -187,6 +187,8 @@ impl AppState {
 
     fn add_log(&mut self, log: &str) -> Task<AppMsg> {
         self.logs.extend(markdown::parse(log));
+        #[cfg(target_os = "linux")]
+        crate::quickshell::broadcast(serde_json::json!({ "t": "log", "level": "info", "text": log }));
         scrollable::scroll_to(SCROLLABLE_ID.clone(), AbsoluteOffset { x: 0., y: f32::MAX })
     }
 
@@ -290,6 +292,218 @@ impl AppState {
 
         Task::batch(commands)
     }
+
+    // -------------------------------------------------------------
+    // Quickshell bridge (linux only)
+    // -------------------------------------------------------------
+    #[cfg(target_os = "linux")]
+    fn apply_quick_command(&mut self, cmd: crate::quickshell::QuickCmd) -> Task<AppMsg> {
+        match cmd {
+            crate::quickshell::QuickCmd::Connect => return self.connect(),
+            crate::quickshell::QuickCmd::Stop => return self.disconnect(),
+            crate::quickshell::QuickCmd::Exit => {
+                return cosmic::iced::runtime::task::effect(cosmic::iced::runtime::Action::Exit);
+            }
+            crate::quickshell::QuickCmd::UseRecommendedFormat => {
+                return self.set_use_recommended_format();
+            }
+            crate::quickshell::QuickCmd::ResetDenoise => {
+                self.config.update(|c| c.reset_denoise_settings());
+                self.qs_broadcast_snapshot();
+                return self.update_audio_stream();
+            }
+            crate::quickshell::QuickCmd::SetConfig(key, value) => {
+                self.apply_config(&key, &value);
+                self.qs_broadcast_snapshot();
+                return self.update_audio_stream();
+            }
+            crate::quickshell::QuickCmd::SetDevice(id) => {
+                if let Some(device) = self.audio_devices.iter().find(|d| d.id == id).cloned() {
+                    self.audio_device = Some(device.device.clone());
+                    self.config.update(|c| c.device_id = Some(device.id.clone()));
+                    self.qs_broadcast_snapshot();
+                    return self.update_audio_stream();
+                }
+            }
+            crate::quickshell::QuickCmd::SetAdapter(ip) => {
+                if let Some(adapter) = self.network_adapters.iter().find(|a| a.ip.to_string() == ip).cloned() {
+                    self.config.update(|c| c.ip = Some(adapter.ip));
+                    self.network_adapter = Some(adapter.clone());
+                    self.qs_broadcast_snapshot();
+                }
+            }
+            crate::quickshell::QuickCmd::SnapshotRequested => self.qs_broadcast_snapshot(),
+        }
+
+        Task::none()
+    }
+
+    #[cfg(target_os = "linux")]
+    fn set_use_recommended_format(&mut self) -> Task<AppMsg> {
+        use crate::config::{AudioFormat, ChannelCount, SampleRate};
+        if let Some(device) = &self.audio_device
+            && let Ok(format) = device.default_output_config()
+        {
+            self.config.update(|s| {
+                s.sample_rate = SampleRate::from_number(format.sample_rate()).unwrap_or_default();
+                s.channel_count = ChannelCount::from_number(format.channels()).unwrap_or_default();
+                s.audio_format = AudioFormat::from_cpal_format(format.sample_format()).unwrap_or_default();
+            });
+            self.qs_broadcast_snapshot();
+            return self.update_audio_stream();
+        }
+        Task::none()
+    }
+
+    #[cfg(target_os = "linux")]
+    fn apply_config(&mut self, key: &str, value: &serde_json::Value) {
+        use crate::config::{AudioFormat, ChannelCount, ConnectionMode, SampleRate};
+        use std::net::IpAddr;
+        use std::str::FromStr;
+
+        self.config.update(|c| match key {
+            "connection_mode" => {
+                if let Some(s) = value.as_str()
+                    && let Ok(m) = ConnectionMode::from_str(s)
+                {
+                    c.connection_mode = m;
+                }
+            }
+            "ip" => {
+                if let Some(s) = value.as_str() {
+                    c.ip = s.parse::<IpAddr>().ok();
+                }
+            }
+            "port" => {
+                if let Some(n) = value.as_u64() {
+                    c.port = n as u16;
+                }
+            }
+            "sample_rate" => {
+                let n = value.as_u64().unwrap_or(0) as u32;
+                if let Some(sr) = SampleRate::from_number(n) {
+                    c.sample_rate = sr;
+                }
+            }
+            "channel_count" => {
+                let n = value.as_u64().unwrap_or(0) as u16;
+                if let Some(cc) = ChannelCount::from_number(n) {
+                    c.channel_count = cc;
+                }
+            }
+            "audio_format" => {
+                if let Some(s) = value.as_str()
+                    && let Ok(f) = AudioFormat::from_str(s)
+                {
+                    c.audio_format = f;
+                }
+            }
+            "start_minimized" => if let Some(b) = value.as_bool() { c.start_minimized = b; },
+            "auto_connect" => if let Some(b) = value.as_bool() { c.auto_connect = b; },
+            "denoise" => if let Some(b) = value.as_bool() { c.denoise = b; },
+            "denoise_kind" => {
+                if let Some(k) = value.as_str().and_then(crate::quickshell::denoise_from_str) {
+                    c.denoise_kind = k;
+                }
+            }
+            "speex_noise_suppress" => if let Some(n) = value.as_i64() { c.speex_noise_suppress = n as i32; },
+            "speex_vad_enabled" => if let Some(b) = value.as_bool() { c.speex_vad_enabled = b; },
+            "speex_vad_threshold" => if let Some(n) = value.as_i64() { c.speex_vad_threshold = n as u32; },
+            "speex_agc_enabled" => if let Some(b) = value.as_bool() { c.speex_agc_enabled = b; },
+            "speex_agc_target" => if let Some(n) = value.as_i64() { c.speex_agc_target = n as u32; },
+            "speex_dereverb_enabled" => {
+                if let Some(b) = value.as_bool() { c.speex_dereverb_enabled = b; }
+            }
+            "speex_dereverb_level" => if let Some(f) = value.as_f64() { c.speex_dereverb_level = f as f32; },
+            "theme" => {
+                if let Some(t) = value.as_str().and_then(crate::quickshell::theme_from_str) {
+                    c.theme = t;
+                }
+            }
+            "amplify" => if let Some(b) = value.as_bool() { c.amplify = b; },
+            "amplify_value" => if let Some(f) = value.as_f64() { c.amplify_value = f as f32; },
+            "post_effect" => {
+                if let Some(e) = value.as_str().and_then(crate::quickshell::effect_from_str) {
+                    c.post_effect = e;
+                }
+            }
+            _ => {}
+        });
+    }
+
+    #[cfg(target_os = "linux")]
+    fn qs_broadcast_snapshot(&self) {
+        crate::quickshell::broadcast(self.qs_config_snapshot());
+        crate::quickshell::broadcast(self.qs_devices_snapshot());
+        crate::quickshell::broadcast(self.qs_adapters_snapshot());
+        crate::quickshell::broadcast(self.qs_state_snapshot());
+    }
+
+    #[cfg(target_os = "linux")]
+    fn qs_config_snapshot(&self) -> serde_json::Value {
+        let cfg = self.config.data();
+        serde_json::json!({ "t": "config", "config": {
+            "connection_mode": crate::quickshell::quick_mode(&cfg.connection_mode),
+            "ip": cfg.ip_or_default().map(|x| x.to_string()).unwrap_or_default(),
+            "port": cfg.port,
+            "sample_rate": cfg.sample_rate.to_number(),
+            "channel_count": cfg.channel_count.to_number(),
+            "audio_format": crate::quickshell::quick_format(&cfg.audio_format),
+            "device_id": cfg.device_id.clone().unwrap_or_default(),
+            "start_minimized": cfg.start_minimized,
+            "auto_connect": cfg.auto_connect,
+            "denoise": cfg.denoise,
+            "denoise_kind": crate::quickshell::quick_denoise(&cfg.denoise_kind),
+            "speex_noise_suppress": cfg.speex_noise_suppress,
+            "speex_vad_enabled": cfg.speex_vad_enabled,
+            "speex_vad_threshold": cfg.speex_vad_threshold,
+            "speex_agc_enabled": cfg.speex_agc_enabled,
+            "speex_agc_target": cfg.speex_agc_target,
+            "speex_dereverb_enabled": cfg.speex_dereverb_enabled,
+            "speex_dereverb_level": cfg.speex_dereverb_level,
+            "theme": crate::quickshell::quick_theme(&cfg.theme),
+            "amplify": cfg.amplify,
+            "amplify_value": cfg.amplify_value,
+            "post_effect": crate::quickshell::quick_effect(&cfg.post_effect),
+        }})
+    }
+
+    #[cfg(target_os = "linux")]
+    fn qs_devices_snapshot(&self) -> serde_json::Value {
+        let list: Vec<serde_json::Value> = self
+            .audio_devices
+            .iter()
+            .map(|d| serde_json::json!({ "id": d.id, "name": d.name }))
+            .collect();
+        serde_json::json!({ "t": "devices", "devices": list })
+    }
+
+    #[cfg(target_os = "linux")]
+    fn qs_adapters_snapshot(&self) -> serde_json::Value {
+        let list: Vec<serde_json::Value> = self
+            .network_adapters
+            .iter()
+            .map(|a| serde_json::json!({ "name": a.name, "ip": a.ip.to_string() }))
+            .collect();
+        serde_json::json!({ "t": "adapters", "adapters": list })
+    }
+
+    #[cfg(target_os = "linux")]
+    fn qs_state_snapshot(&self) -> serde_json::Value {
+        let state_str = match &self.connection_state {
+            ConnectionState::Listening => "Listening",
+            ConnectionState::Connected => "Connected",
+            ConnectionState::WaitingOnStatus => "WaitingOnStatus",
+            _ => "Disconnected",
+        };
+        let cfg = self.config.data();
+        serde_json::json!({
+            "t": "state",
+            "state": state_str,
+            "ip": cfg.ip_or_default().map(|x| x.to_string()).unwrap_or_default(),
+            "port": cfg.port
+        })
+    }
 }
 
 pub struct Flags {
@@ -297,6 +511,8 @@ pub struct Flags {
     pub config_path: String,
     pub log_path: String,
     pub launched_automatically: bool,
+    #[cfg(target_os = "linux")]
+    pub quickshell: bool,
 }
 
 // used because the markdown parsing only detect https links
@@ -332,6 +548,11 @@ impl Application for AppState {
         core: cosmic::app::Core,
         flags: Self::Flags,
     ) -> (Self, cosmic::app::Task<Self::Message>) {
+        #[cfg(target_os = "linux")]
+        let quickshell_mode = flags.quickshell;
+        #[cfg(not(target_os = "linux"))]
+        let quickshell_mode = false;
+
         // initialize audio device
         let audio_host = cpal::default_host();
 
@@ -441,11 +662,25 @@ impl Application for AppState {
         }
 
         #[cfg(target_os = "linux")]
-        commands.push(app.open_main_window());
+        if !quickshell_mode {
+            commands.push(app.open_main_window());
+        }
+
+        #[cfg(target_os = "linux")]
+        if quickshell_mode {
+            app.qs_broadcast_snapshot();
+        }
 
         match single_instance::stream() {
             Ok(stream) => {
-                commands.push(cosmic::iced::task::Task::run(stream, |event| match event {
+                commands.push(cosmic::iced::task::Task::run(stream, move |event| match event {
+                    #[cfg(target_os = "linux")]
+                    single_instance::IpcEvent::Show if quickshell_mode => {
+                        crate::quickshell::broadcast(
+                            serde_json::json!({ "t": "open", "which": "info" }),
+                        );
+                        cosmic::Action::None
+                    }
                     single_instance::IpcEvent::Show => cosmic::Action::App(AppMsg::ShowWindow),
                 }));
             }
@@ -475,6 +710,8 @@ impl Application for AppState {
                     cpal::host_from_id(self.audio_host.id()).unwrap_or(cpal::default_host());
 
                 self.audio_devices = get_audio_devices(&audio_host);
+                #[cfg(target_os = "linux")]
+                self.qs_broadcast_snapshot();
             }
             AppMsg::RefreshNetworkAdapters => {
                 let network_adapters = list_afinet_netifas()
@@ -487,12 +724,16 @@ impl Application for AppState {
                     })
                     .collect::<Vec<_>>();
                 self.network_adapters = network_adapters;
+                #[cfg(target_os = "linux")]
+                self.qs_broadcast_snapshot();
             }
             AppMsg::Streamer(streamer_msg) => match streamer_msg {
                 StreamerMsg::Error(e) => {
                     self.connection_state = ConnectionState::Default;
                     self.audio_stream = None;
                     self.audio_wave.clear();
+                    #[cfg(target_os = "linux")]
+                    self.qs_broadcast_snapshot();
                     return self.add_log(&e);
                 }
                 StreamerMsg::Listening { ip, port } => {
@@ -507,6 +748,8 @@ impl Application for AppState {
                     }
 
                     self.connection_state = ConnectionState::Listening;
+                    #[cfg(target_os = "linux")]
+                    self.qs_broadcast_snapshot();
                     if let (Some(ip), Some(port)) = (ip, port) {
                         info!("listening on {ip}:{port}");
                         return self.add_log(format!("Listening on `{ip}:{port}`").as_str());
@@ -541,6 +784,8 @@ impl Application for AppState {
                     }
 
                     self.connection_state = ConnectionState::Connected;
+                    #[cfg(target_os = "linux")]
+                    self.qs_broadcast_snapshot();
                     if let (Some(ip), Some(port)) = (ip, port) {
                         info!("connected on {ip}:{port}");
                         return self.add_log(format!("Connected on `{ip}:{port}`").as_str());
@@ -548,6 +793,11 @@ impl Application for AppState {
                 }
                 StreamerMsg::UpdateAudioWave { data } => {
                     self.audio_wave.write_chunk(&data);
+                    #[cfg(target_os = "linux")]
+                    {
+                        let values: Vec<f32> = data.iter().map(|(_min, max)| *max).collect();
+                        crate::quickshell::broadcast(serde_json::json!({ "t": "wave", "data": values }));
+                    }
                 }
                 StreamerMsg::Ready(sender) => {
                     self.streamer = Some(sender);
@@ -859,6 +1109,10 @@ impl Application for AppState {
                     return Task::batch(vec![command, self.update_audio_stream()]);
                 }
             }
+            #[cfg(target_os = "linux")]
+            AppMsg::QuickShell(cmd) => {
+                return self.apply_quick_command(cmd);
+            }
             AppMsg::Exit => {
                 return cosmic::iced_runtime::task::effect(cosmic::iced::runtime::Action::Exit);
             }
@@ -895,6 +1149,11 @@ impl Application for AppState {
     fn subscription(&self) -> cosmic::iced::Subscription<Self::Message> {
         #[allow(unused_mut)]
         let mut subscriptions = vec![Subscription::run(|| streamer::sub().map(AppMsg::Streamer))];
+
+        #[cfg(target_os = "linux")]
+        subscriptions.push(Subscription::run(|| {
+            crate::quickshell::subscribe().map(AppMsg::QuickShell)
+        }));
 
         #[cfg(not(target_os = "linux"))]
         if let Some(system_tray_stream) = &self.system_tray_stream {

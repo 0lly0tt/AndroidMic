@@ -29,6 +29,8 @@ pub enum AppMsg {
     LinkClicked(String),
     #[cfg(not(target_os = "linux"))]
     SystemTray(SystemTrayMsg),
+    #[cfg(target_os = "linux")]
+    QuickShell(crate::quickshell::QuickCmd),
     Exit,
 }
 
