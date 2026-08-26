@@ -50,6 +50,9 @@ Panel {
     function sendConfig(key, value) {
         micSock.write(JSON.stringify({ cmd: "config", key: key, value: value }) + "\n")
     }
+    function sendDevice(id) {
+        micSock.write(JSON.stringify({ cmd: "device", value: id }) + "\n")
+    }
     function accumulateWave(data) {
         if (!data || !data.length) return
         var arr = root.wave.slice()
@@ -80,7 +83,19 @@ Panel {
             case "wave":
                 root.accumulateWave(obj.data)
                 break
+            case "open":
+                // System-tray "Open" / "Settings" asked us to show the panel.
+                if (String(obj.which || "") === "settings")
+                    root.showSettings = true
+                root.openPanel()
+                break
         }
+    }
+
+    // The Panel base opens on root.open(); keep a named wrapper so socket /
+    // tray listeners can summon a specific section.
+    function openPanel() {
+        root.open()
     }
 
     Socket {
@@ -172,7 +187,7 @@ Panel {
                             elide: Text.ElideMiddle
                         }
                     }
-                    Ui.Button {
+                    Button {
                         text: root.streaming ? "Disconnect" : "Connect"
                         bordered: true
                         foreground: root.streaming ? Color.accent : Color.foreground
@@ -225,6 +240,15 @@ Panel {
                 PanelSeparator { width: parent.width; foreground: Color.foreground }
 
                 FontHeader { text: "AUDIO FORMAT" }
+                // Output device: shows the virtual_mic etc. Without this the
+                // daemon falls back to the default (speaker) device and fails
+                // to start the stream. 'device' command updates config.device_id.
+                DropdownRow {
+                    label: "Device"
+                    options: root.devices.map(function(d){ return { value: d.id, label: d.name } })
+                    value: String(root.config.device_id || "")
+                    onChanged: function(v) { root.sendDevice(v) }
+                }
                 DropdownRow {
                     label: "Sample rate"
                     options: Opt.sampleRates.map(function(s){ return { value: String(s), label: String(s) } })
@@ -242,6 +266,16 @@ Panel {
                     options: Opt.audioFormats.map(function(f){ return { value: f.key, label: f.label } })
                     value: root.config.audio_format
                     onChanged: function(v) { root.sendConfig("audio_format", v) }
+                }
+
+                // Fix "Unsupported output audio format" errors at a click: the
+                // daemon picks the format + rate actually supported by the device.
+                Button {
+                    width: parent.width
+                    text: "Use recommended format"
+                    bordered: true
+                    foreground: Color.accent
+                    onClicked: root.sendCmd("use_recommended_format")
                 }
 
                 FontHeader { text: "CONNECTION" }
