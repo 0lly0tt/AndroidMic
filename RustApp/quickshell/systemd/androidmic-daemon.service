@@ -1,0 +1,19 @@
+[Unit]
+Description=AndroidMic daemon (headless stream-tray + Quickshell socket)
+# Needs a Wayland session (registers a StatusNotifierItem/tray via D-Bus and
+# touches the Wayland/graphics stack), so it must start inside the graphical
+# session rather than at default.target.
+After=graphical-session.target
+PartOf=graphical-session.target
+ConditionEnvironment=WAYLAND_DISPLAY
+
+[Service]
+Type=simple
+# Point this at the branch-built headless binary. Either copy/symlink the
+# release build to ~/.local/bin/android-mic, or edit the path below.
+ExecStart=%h/.local/bin/android-mic --quickshell
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=graphical-session.target
