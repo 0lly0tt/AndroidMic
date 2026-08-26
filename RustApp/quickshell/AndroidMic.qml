@@ -105,10 +105,13 @@ Item {
             case "wave":
                 root.accumulateWave(obj.data)
                 break
-            // NOTE: bar-panel is the only GUI. We intentionally do NOT open the
-            // standalone floating windows on tray Open/Settings; the Omarchy
-            // bar widget owns that. (Kept as a no-op so the standalone entry
-            // remains available via its own buttons.)
+            case "open":
+                // System tray asked us to show a dialog. The bar widget has
+                // been removed, so these standalone windows are the GUI the
+                // tray summons.
+                if (obj.which === "settings" && !root.settingsVisible) root.settingsVisible = true
+                else if (obj.which === "info" && !root.infoVisible) root.infoVisible = true
+                break
         }
     }
 

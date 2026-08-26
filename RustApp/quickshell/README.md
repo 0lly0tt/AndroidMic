@@ -59,34 +59,14 @@ cargo build --release           # links clean, no libxdo needed
 ./target/release/android-mic --quickshell
 ```
 
-Drop it into `~/.config/quickshell/` (as a named config sub-folder) or load it
-as an Omarchy/Quickshell plugin; it only depends on stock `QtQuick`, `QtQuick.
+## System tray is the GUI
+
+The **system tray (StatusNotifierItem)** is the primary interface, `run.sh`
+launches the floating info/settings windows that the tray **Open**/**Settings**
+items summon. (The earlier Omarchy bar-widget was removed in favour of the
+tray.) Drop it into `~/.config/quickshell/` (as a named config sub-folder) or
+load it as a Quickshell plugin; it only depends on stock `QtQuick`, `QtQuick.
 Controls` and `Quickshell` modules.
-
-## Omarchy bar-widget
-
-`omarchy/` is a **bar-widget plugin** for [Omarchy](https://omarchy.org): a
-mic button in the bar that opens the stream status + audio settings in a
-theme-native panel (waveform, connect/disconnect, settigs), talking to the
-`android-mic --quickshell` daemon over the same socket. Install it with:
-
-```sh
-omarchy plugin add /path/to/RustApp/quickshell/omarchy   # or point the git URL at this folder
-omarchy-shell shell rescanPlugins
-omarchy plugin enable androidmic.quickshell --section right
-```
-
-or run the bundled helper:
-
-```sh
-./install-omarchy.sh
-```
-
-> The widget is a single self-contained `Panel.qml` (the Omarchy plugin loader
-does not auto-discover sibling `.qml` files), so only `Options.js`/`Mock.js`
-are cloned alongside it. After installing/editing, **restart the shell**
-(immediately on next login) — a hot plugin reload can show a stale QML cache
-error for a widget whose file changed at a previous load.
 
 ## Files
 
