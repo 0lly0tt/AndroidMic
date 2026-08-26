@@ -105,10 +105,10 @@ Item {
             case "wave":
                 root.accumulateWave(obj.data)
                 break
-            case "open":
-                if (obj.which === "settings" && !root.settingsVisible) root.settingsVisible = true
-                else if (obj.which === "info" && !root.infoVisible) root.infoVisible = true
-                break
+            // NOTE: bar-panel is the only GUI. We intentionally do NOT open the
+            // standalone floating windows on tray Open/Settings; the Omarchy
+            // bar widget owns that. (Kept as a no-op so the standalone entry
+            // remains available via its own buttons.)
         }
     }
 
