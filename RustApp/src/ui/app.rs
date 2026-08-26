@@ -557,26 +557,65 @@ impl Application for AppState {
         let quickshell_mode = flags.quickshell;
         #[cfg(not(target_os = "linux"))]
         let quickshell_mode = false;
+        #[cfg(target_os = "linux")]
+        let mut flags = flags;
 
         // initialize audio device
         let audio_host = cpal::default_host();
 
         let audio_devices = get_audio_devices(&audio_host);
-        let audio_device = match &flags.config.data().device_id {
-            Some(id) => {
-                match audio_devices
-                    .iter()
-                    .find(|audio_device| &audio_device.id == id)
-                {
-                    Some(audio_device) => Some(audio_device.device.clone()),
-                    None => {
-                        warn!("can't find audio device {}", id);
-                        audio_host.default_output_device()
+        let audio_device = {
+            // Empty-string device_id (TOML default) counts as "none".
+            let configured_id = flags
+                .config
+                .data()
+                .device_id
+                .as_deref()
+                .filter(|id| !id.is_empty());
+            match configured_id {
+                Some(id) => {
+                    match audio_devices.iter().find(|d| d.id == id) {
+                        Some(d) => Some(d.device.clone()),
+                        None => {
+                            warn!("can't find audio device {}", id);
+                            audio_host.default_output_device()
+                        }
                     }
                 }
+                None => {
+                    // No explicit device configured: prefer the AndroidMic
+                    // virtual mic if one exists (name contains "virtual" or
+                    // starts with "android"), so we don't play into the
+                    // speaker / hit "Unsupported output audio format".
+                    audio_devices
+                        .iter()
+                        .find(|d| {
+                            let n = d.name.to_lowercase();
+                            n.contains("virtual_mic")
+                                || n.contains("virtual mic")
+                                || n.starts_with("android")
+                        })
+                        .map(|d| d.device.clone())
+                        .or_else(|| audio_host.default_output_device())
+                }
             }
-            None => audio_host.default_output_device(),
         };
+        // Persist the chosen fallback so the bar panel shows the right device.
+        // Treat an empty-string device_id as "none" (TOML default).
+        #[cfg(target_os = "linux")]
+        let device_id_none = flags
+            .config
+            .data()
+            .device_id
+            .as_deref()
+            .map_or(true, |id| id.is_empty());
+        #[cfg(target_os = "linux")]
+        if device_id_none
+            && let Some(id) = audio_device.as_ref().and_then(|d| d.id().ok())
+        {
+            let chosen = id.to_string();
+            flags.config.update(|c| c.device_id = Some(chosen));
+        }
 
         // initialize network adapter
         let network_adapters = list_afinet_netifas()
