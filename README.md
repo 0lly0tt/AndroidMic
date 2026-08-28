@@ -9,6 +9,12 @@
 [![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/teamclouday/AndroidMic.svg?logo=github&label=GitHub&cacheSeconds=3600)](https://github.com/teamclouday/AndroidMic/releases/latest)
 [![F-Droid](https://img.shields.io/f-droid/v/io.github.teamclouday.AndroidMic?logo=f-droid&label=F-Droid&cacheSeconds=3600)](https://f-droid.org/packages/io.github.teamclouday.AndroidMic)
 
+> [!NOTE]
+> **This is a fork.** Based on [teamclouday/AndroidMic](https://github.com/teamclouday/AndroidMic) (GPL-3.0),
+> reworked for Linux desktops into a headless daemon (`--quickshell` mode) driven by an Omarchy bar-widget
+> / Quickshell UI instead of the windowed tray app. The complete list of changes vs upstream is documented
+> in [`FILE-INVENTORY.md`](FILE-INVENTORY.md); everything else works as described below.
+
 ---
 
 <p  style="text-align: center;">
