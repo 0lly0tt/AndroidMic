@@ -80,10 +80,10 @@ omarchy-shell shell rescanPlugins
 omarchy plugin enable androidmic.quickshell --section right
 ```
 
-or run the bundled helper:
+or run the bundled installer (installs plugin **and** daemon/units):
 
 ```sh
-./install-omarchy.sh
+./install.sh
 ```
 
 > The widget is a single self-contained `Panel.qml` (the Omarchy plugin loader
@@ -110,7 +110,7 @@ error for a widget whose file changed at a previous load.
 
 ## systemd autostart
 
-`install-systemd.sh` installs and enables three user units (into
+`install.sh` installs and enables three user units (into
 `~/.config/systemd/user/`):
 
 | unit | purpose |
@@ -120,8 +120,8 @@ error for a widget whose file changed at a previous load.
 | `androidmic-default-source.service` | sets `virtual_mic.monitor` as the default record source — `default.target` |
 
 ```sh
-./install-systemd.sh            # install binary + all three units, enable them
-./install-systemd.sh /path/to/android-mic   # explicit binary path
+./install.sh                     # install binary + all three units + plugin, enable them
+./install.sh /path/to/android-mic   # explicit binary path
 ```
 
 The daemon unit needs a binary; the two virtual-mic units don't (they only need

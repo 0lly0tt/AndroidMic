@@ -155,13 +155,13 @@ no separate window is needed.
 ### 5.1 Install the three systemd user services
 
 The repo bundles the units so a single installer sets everything (binary +
-units + virtual-mic script):
+units + virtual-mic script + bar-widget plugin):
 
 ```sh
 cd RustApp/quickshell
-./install-systemd.sh                 # uses target/release/android-mic
+./install.sh                     # uses target/release/android-mic
 # or point at an explicit binary:
-./install-systemd.sh /path/to/android-mic
+./install.sh /path/to/android-mic
 ```
 
 This installs & enables (into `~/.config/systemd/user/`):
@@ -183,12 +183,8 @@ pactl get-default-source                          # virtual_mic.monitor
 
 ### 5.2 Install the Omarchy bar-widget
 
-```sh
-cd RustApp/quickshell
-./install-omarchy.sh                # adds plugin id 'androidmic.quickshell'
-```
-
-or manually:
+Already covered by `./install.sh` (step 5.1) — it installs and enables the
+plugin too. To do it manually:
 
 ```sh
 omarchy plugin add /path/to/RustApp/quickshell/omarchy
@@ -272,8 +268,7 @@ the daemon; in this Omarchy-oriented layout the **bar widget only** is expected.
 | `RustApp/quickshell/shell.qml` | Quickshell entry (standalone) |
 | `RustApp/quickshell/run.sh` | launch the standalone GUI live/mock |
 | `RustApp/quickshell/omarchy/` | the **Omarchy bar-widget plugin** (`manifest.json`, `Panel.qml`, `Options.js`, `Mock.js`) |
-| `RustApp/quickshell/install-omarchy.sh` | install/enable the bar widget |
-| `RustApp/quickshell/install-systemd.sh` | install/enable the three systemd units |
+| `RustApp/quickshell/install.sh` | one-shot installer: binary + systemd units + bar-widget plugin |
 | `RustApp/quickshell/systemd/androidmic-daemon.service` | headless daemon unit |
 | `RustApp/quickshell/systemd/androidmic-virtual-mic.service` + `.sh` | creates the virtual sink/source |
 | `RustApp/quickshell/systemd/androidmic-default-source.service` | makes it the default mic |

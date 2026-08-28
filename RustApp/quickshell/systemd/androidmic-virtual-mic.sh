@@ -2,7 +2,7 @@
 # Persistent Android Mic -> virtual PipeWire/PulseAudio microphone.
 # Runs at each login (user systemd service). Idempotent.
 #
-# Installed by install-systemd.sh as ~/.config/systemd/user/androidmic-virtual-mic.sh
+Installed by install.sh as ~/.config/systemd/user/androidmic-virtual-mic.sh
 set -u
 
 # Wait for the PulseAudio socket to be ready.
