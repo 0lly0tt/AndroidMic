@@ -205,7 +205,10 @@ Panel {
                     height: Style.space(80)
                     radius: Math.max(3, Style.cornerRadius - 2)
                     color: Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.06)
+                    // The Timer / onCompleted below repaint this canvas on the
+                    // waveform; it needs an id to be referenced.
                     Canvas {
+                        id: canvas
                         anchors.fill: parent
                         anchors.margins: 8
                         onPaint: drawWave(this)
