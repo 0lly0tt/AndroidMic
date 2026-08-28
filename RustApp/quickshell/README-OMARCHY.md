@@ -3,11 +3,11 @@
 This documents the **Omarchy-oriented** way to run AndroidMic: as a **headless
 daemon** (no desktop window) controlled from a **system-bar widget** and a
 **virtual-mic audio cable**. It is the result of reworking the stock app to fit
-a minimal, always-in-the-bar desktop. It explains *what* we changed, *why*, and
-exactly how to reproduce it on your own machine.
+a minimal, always-in-the-bar desktop. It explains *what* changed, *why*, and
+exactly how to reproduce the setup on any machine.
 
-- Why and what we changed is explained below.
-- If you just want the commands, jump to **Quick install**.
+- What and why changed is explained below.
+- For the bare commands, jump to **Build** and **Setup**.
 - For OS-fit, build prerequisites and where it does *not* work, see the
   **Target OS & limitations** section.
 
@@ -17,10 +17,11 @@ exactly how to reproduce it on your own machine.
 
 The original AndroidMic PC app is a single always-open **desktop window** that
 both shows the stream and holds all settings. On a bar-driven setup (Omarchy /
-Quickshell desktops) that window is awkward: you want a small **always-visible
-button** in the bar, connect/disconnect at a click, and settings out of the way.
+Quickshell desktops) that window is awkward: a small **always-visible button**
+in the bar, connect/disconnect at a click, and settings kept out of the way is
+a better fit.
 
-We re-architected it into three moving parts that talk over a **local Unix
+The app is re-architectured into three parts that talk over a **local Unix
 socket**:
 
 ```
@@ -44,25 +45,34 @@ socket**:
 | Piece | Role |
 |-------|------|
 | `android-mic --quickshell` | headless daemon: listens for the phone, plays the stream into the virtual mic, serves state/settings over a Unix socket. **No window, no tray icon.** |
-| `virtual_mic` (PipeWire null sink) | the "virtual cable" — what AndroidMic plays into; its `.monitor` is the actual mic other apps record from. |
-| Omarchy **bar-widget** | a mic button in the bar; clicking opens a panel to Connect/Disconnect, see a live waveform, and edit settings. This replaces the desktop window. |
+| `virtual_mic` (PipeWire null sink) | the "virtual cable" — what AndroidMic plays into; its `.monitor` is the actual mic other applications record from. |
+| Omarchy **bar-widget** | a mic button in the bar; clicking opens a panel with Connect/Disconnect, a live waveform, and the settings. This replaces the desktop window. |
 
-Everything the user "sees" is now the **bar widget**. The daemon is invisible
-in the background under a system service.
+Everything visible to the operator is now the **bar widget**. The daemon is
+invisible in the background under a system service.
 
 ---
 
-## Why we changed what we did (session narrative)
+## 2. GUI differences vs. the original app
 
-| Step | What / why |
-|------|-----------|
-| **GUI via Quickshell, not the cosmic window** | Implicit `--quickshell` runs the app headless; a QML/Quickshell front-end (the bar widget) renders info + settings. Removes the big desktop window. |
-| **`--quickshell` flag** | Added `--quickshell` to the CLI (`src/config.rs`). Launch the daemon only for the socket. |
-| **Unix-socket IPC** | Added a socket server (`$XDG_RUNTIME_DIR/android-mic.qsock`) broadcasting newline-delimited JSON (config / state / devices / log / wave). The bar widget reads it; it sends back `connect`, `stop`, `config`, `device`, `use_recommended_format`. |
-| **Remove the system-tray (SNI)** | The bar widget is the GUI. An extra tray icon just duplicated the button and confused the launcher. Dropped the SNI (and the `ksni`/GTK code). The daemon is **tray-less**. |
-| **Virtual-mic auto-selection** | If no output device is configured, the daemon auto-picks a sink whose name contains `virtual` (or starts with `android`). So it plays into the virtual mic instead of your speaker. |
-| **systemd autostart** | Three user units (`androidmic-daemon`, `androidmic-virtual-mic`, `androidmic-default-source`) make everything start at login and keep it idempotent. |
-| **Device picker + "Use recommended format"** | The bar panel can pick the output device and request the daemon to match the device's supported format (fixes "Unsupported output audio format"). |
+This is the main thing that changes. Both are functionally equivalent (same
+stream, same settings), but the presentation and the control surface differ.
+
+| Aspect | Original app | This Omarchy setup |
+|--------|-------------|--------------------|
+| **Shell** | a single cosmic/winit desktop window | no window at all — a **bar widget** + a headless background service |
+| **Launch** | open a window at startup; close to exit | a button in the bar; the daemon is an always-running system service |
+| **Connect / stop** | a Connect/Disconnect button inside the window | a small icon button; inside the popup panel Connect/Disconnect at the top |
+| **Status** | a connection-state label/canvas in the window | a colored mic glyph (accent when streaming, dim when idle) + state text in the panel |
+| **Waveform** | a wide canvas in the window | a slim animated bar strip inside the panel |
+| **Settings** | a separate 500×600 settings window | a **panel** opened from the same button — sample-rate / channel / format pickers, "Use recommended format", auto-connect, network adapter, post-effect, theme |
+| **System tray** | optional tray icon | **no tray icon** — the bar button is the single entry point |
+| **Theme** | own light/dark/contrast theme | inherits the **Omarchy theme** (colors, fonts, icons) so it looks native |
+
+Concretely, the stock app pops a full **main window** and a **settings window**.
+This setup ships **no windows at all**: the equivalent controls live in the bar
+widget's popup panel. The `run.sh` standalone variant keeps the two floating
+windows (info + settings), but with the bar-widget they are not needed.
 
 ---
 
@@ -75,22 +85,21 @@ in the background under a system service.
   server are not in the packaged AppImage / snap).
 
 ### Requires
-- **PipeWire or PulseAudio** (with a `pactl`/`pw-cli`), and `systemd --user`.
-- **Omarchy (or another Quickshell host)** with the **plugin loader** for the
-  bar widget. Without a shell that loads `omarchy` style bar-widgets you would
-  instead use the standalone `run.sh` Quickshell windows.
+- **PipeWire or PulseAudio** (with `pactl`/`pw-cli`), and `systemd --user`.
+- **Omarchy (or another Quickshell host)** with a **plugin loader** for the
+  bar widget. Without a shell that can load Omarchy-style bar-widgets the
+  standalone `run.sh` Quickshell windows are the alternative.
 
 ### Where it does **not** work
 - **Windows / macOS** — `--quickshell` and the included systemd units are
   Linux-only. The original Windows GUI still works normally; the Linux window
   and the Quickshell path are separate builds.
-- **without PipeWire/Pulse** — there is no `virtual_mic` to create and no
-  `pactl`, so `androidmic-virtual-mic.sh` will exit (it waits for the audio
-  socket).
+- **without PipeWire/Pulse** — no `virtual_mic` can be created and no `pactl`
+  exists, so `androidmic-virtual-mic.sh` exits (it waits for the audio socket).
 - **systemd-user disabled** — the autostart units need `systemd --user`. On a
-  non-systemd machine you must start `android-mic --quickshell` manually.
-- **AppImage** — the prebuilt release does **not** contain `--quickshell`; you
-  must build from source (see next section).
+  non-systemd machine `android-mic --quickshell` must be started manually.
+- **AppImage** — the prebuilt release does **not** contain `--quickshell`; a
+  from-source build is required (next section).
 - In **containers/sandboxes** the socket path (`$XDG_RUNTIME_DIR`) or the
   virtual-mic device may not be shareable.
 
@@ -103,22 +112,23 @@ in the background under a system service.
 git clone https://github.com/teamclouday/AndroidMic
 cd AndroidMic/RustApp
 
-# build the release binary (this includes the --quickshell code)
+# build the release binary (includes the --quickshell code)
 cargo build --release
 # → target/release/android-mic
 ```
 
 > **No extra system deps needed for Linux linking.** The tray/SNI (GTK /
-  `libxdo`) is gone from this branch, so `cargo build --release` links clean
-  on a plain Linux with just the Rust toolchain + PipeWire devs.
+  `libxdo`) is gone from this branch, so `cargo build --release` links clean on
+  a plain Linux with only the Rust toolchain + PipeWire devs.
 
-### (Optional) install the Quickshell GUI (standalone dialog switcher)
-If you want the info/settings windows (not the bar widget) you'd also run:
+### (Optional) standalone Quickshell GUI
+If the desktop has no bar-widget loader, the **standalone** dialog switcher can
+be used instead:
 ```
 ./quickshell/run.sh
 ```
-But with the **bar widget** (recommended) the shell loads `Panel.qml` by
-itself — no separate window.
+But with the **bar widget** (recommended) the shell loads `Panel.qml` itself —
+no separate window is needed.
 
 ---
 
@@ -168,18 +178,18 @@ omarchy-shell shell rescanPlugins
 omarchy plugin enable androidmic.quickshell --section right
 ```
 
-A mic button (`󰍬`) appears in the right side of the bar. Click the **button**
-(or press **Enter**) to open the panel: Connect/Disconnect, waveform, device /
+A mic button (`󰍬`) appears in the right side of the bar. Clicking the **button**
+(or pressing **Enter**) opens the panel: Connect/Disconnect, waveform, device /
 sample-rate / format pickers, "Use recommended format", auto-connect, network
 adapter, post-effect, theme.
 
-> For a target (pod) shell: the panel QML is a single file so is easy to ship.
-> After editing `.qml` files in place, **restart the shell** (or do a cold
-> plugin re-install) — hot reload can keep a stale QML cache for the same URL.
+> The panel QML is a single file, so it is easy to ship. After in-place edits
+> to `.qml` files, **restart the shell** (or do a cold plugin reinstall) — hot
+> reload can keep a stale QML cache for the same URL.
 
 ---
 
-## 6. Wire the audio + pick the right devices
+## 6. Wire the audio + select the right devices
 
 ### 6.1 The virtual mic (auto-created)
 
@@ -187,7 +197,7 @@ adapter, post-effect, theme.
 
 ```
 null sink  virtual_mic            ← AndroidMic plays here ("Android" / virtual_mic)
-source     virtual_mic.monitor    ← this is the *mic* apps read
+source     virtual_mic.monitor    ← this is the *mic* applications read
 source     virtual_mic_source     ← optional named alias of the monitor
 default source = virtual_mic.monitor
 ```
@@ -195,43 +205,43 @@ default source = virtual_mic.monitor
 The AndroidMic daemon **auto-selects `virtual_mic`** as its output, so it plays
 the phone stream into the sink, and the monitor becomes the system mic.
 
-### 6.2 The Omarchy panel: speaker/output settings
+### 6.2 In the Omarchy audio panel: speaker/output settings
 
-In the Omarchy audio panel (or via `omarchy.audio`) you'll see two device lists:
-an **Output (speakers)** and an **Input (mic)**.
+The Omarchy audio panel (`omarchy.audio`) shows two lists: an **Output
+(speakers)** and an **Input (mic)**.
 
-- **Input**: set it to **`virtual_mic` / "Android" `(virtual_mic.monitor)`**.
-  That is the phone mic. **Keep it here.**
-- **Output**: set it to your **real speakers/headphones**. **Do NOT** set it
-  to "android" (`virtual_mic`).
+- **Input**: set to **`virtual_mic` / "Android" (`virtual_mic.monitor`)**.
+  That is the phone mic. Keep it here.
+- **Output**: set to the **real speakers/headphones**. **Do NOT** set it to
+  "android" (`virtual_mic`).
 
-> Why: "android" **is** the `virtual_mic` null sink. If you make it the
-> *output* target, every app that plays to the default is routed into an empty
-> sink and is **silent** — you effectively mute your machine. It only makes
-> sense as the *input*. The null sink has no physical output, so "android as
-> output" discards the sound.
+> Why: "android" **is** the `virtual_mic` null sink. Making it the *output*
+> target routes every application that plays to the default into an empty sink,
+> i.e. it becomes **silent** — effectively muting the machine. The null sink has
+> no physical output, so "android as output" discards the sound. It only makes
+> sense as the *input*.
 
-Per-app: e.g. Discord / OBS / your recorder put **"Android Mic (phone)"**
-(`virtual_mic.monitor`) as the **input device**. They then capture the phone
-mic.
+Per-application (e.g. Discord, OBS, a recorder) set **"Android Mic (phone)"**
+(`virtual_mic.monitor`) as the **input device**. The application then captures
+the phone mic.
 
-### 6.3 The `pi` coding agent (pi-listen) input
+### 6.3 Transcribing agents (e.g. `pi-listen`)
 
-If you run an agent that transcribes (e.g. `@codexstar/pi-listen`), it captures
-the **default PulseAudio source**, which is `virtual_mic.monitor`. Set that as
-the default (done by `androidmic-default-source.service`) and choose the same
-sample rate/format between the Android app and the daemon (48k / i16 / mono is
-the default). A rate/depth mismatch can make it drop audio into silence.
+An agent that transcribes (for instance `@codexstar/pi-listen`) captures the
+**default PulseAudio source**, which is `virtual_mic.monitor`. Keep that as the
+default (done by `androidmic-default-source.service`) and match the sample
+rate/format between the Android app and the daemon (the default is 48 kHz /
+i16 / mono). A rate or depth mismatch can drop the audio into silence.
 
 ---
 
-## 7. I saw once for a "tray icon somewhere else"?…
+## 7. About the missing tray icon
 
-This branch deliberately ships **no system tray icon** — the tray icon would
-duplicate the bar mic button. If you also prefer the original *tray* behavior,
-keep the standalone `run.sh` (info/settings windows) and enable the SNI in the
-daemon again; but in this Omarchy oriented layout you want the **bar widget
-only**.
+This branch deliberately ships **no system tray icon** — a tray icon would
+duplicate the bar mic button. The bar widget is the intended single entry
+point. If the original *tray* behaviour is preferred instead, the standalone
+`run.sh` (info + settings windows) can be used and the SNI can be re-enabled in
+the daemon; in this Omarchy-oriented layout the **bar widget only** is expected.
 
 ---
 
@@ -259,18 +269,18 @@ only**.
 
 | Symptom | Cause / fix |
 |---------|-------------|
-| Bar button missing | plugin not enabled / shell not reloaded — `omarchy plugin enable androidmic.quickshell --section right`, rescan. |
-| "Unsupported output audio format" on connect | The device's native format differs. Open the bar panel, set **Device** to `virtual_mic`, then **"Use recommended format"**. |
-| loop the mic works for Android app but no sound | check the *input* device is `virtual_mic.monitor` in the target app; check default source with `pactl get-default-source`. |
-| System output becomes silent | You set "android" as the *output* — revert to your speakers (see §6.2). |
-| sample mismatch → silence after connect | Align sample rate/format between the Android app and daemon (48k/i16/mono). |
-| panel not updating after editing a `.qml` file | needed a cold shell reload to clear the QML cache for the same URL. |
+| Bar button missing | plugin not enabled / shell not reloaded — `omarchy plugin enable androidmic.quickshell --section right`, then rescan. |
+| "Unsupported output audio format" on connect | the device's native format differs. In the bar panel set **Device** to `virtual_mic`, then press **"Use recommended format"**. |
+| analog app shows connected but no sound | check the *input* device is `virtual_mic.monitor` in the target application; check the default source with `pactl get-default-source`. |
+| System output becomes silent | "android" was selected as the *output* — revert to the real speakers (see §6.2). |
+| sample mismatch → silence after connect | align sample rate/format between the Android app and the daemon (48 kHz/i16/mono). |
+| panel not updating after editing `.qml` | a cold shell reload is needed to clear the QML cache for the same URL. |
 
 ---
 
 ## 10. Manual run (no systemd)
 
-If you avoid systemd, you can bring it up manually:
+Without systemd the setup can be brought up manually:
 
 ```sh
 # 1) create the virtual mic once (idempotent):
@@ -279,6 +289,6 @@ RustApp/quickshell/systemd/androidmic-virtual-mic.sh
 # 2) start the headless daemon:
 RustApp/target/release/android-mic --quickshell &
 
-# 3) the Omarchy bar widget (already loaded by the shell) now sees it over
-#    the socket. Click the mic button to connect / change settings.
+# 3) the Omarchy bar widget (already loaded by the shell) then sees the daemon
+#    over the socket. Click the mic button to connect / change settings.
 ```
