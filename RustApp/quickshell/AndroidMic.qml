@@ -116,14 +116,28 @@ Item {
     Socket {
         id: sock
         path: root.socketPath
-        connected: !root.mock
+        // Retry forever: the daemon may not be up yet (boot race) or may
+        // have restarted while this window was open. Quickshell's Socket
+        // does NOT retry on its own.
         parser: SplitParser { onRead: function(line) { root.handleLine(line) } }
         onConnectedChanged: {
             if (connected) {
+                reconnectTimer.stop()
                 root.logMessage("info", "connected to daemon")
                 Qt.callLater(function() { root.infoVisible = true })
+            } else if (!root.mock) {
+                reconnectTimer.restart()
             }
         }
+        Component.onCompleted: if (!root.mock) sock.connected = true
+    }
+
+    Timer {
+        id: reconnectTimer
+        interval: 2000
+        repeat: true
+        running: false
+        onTriggered: sock.connected = true
     }
 
     // ---------- mock backend ----------

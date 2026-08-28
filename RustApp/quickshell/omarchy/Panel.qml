@@ -101,8 +101,24 @@ Panel {
     Socket {
         id: micSock
         path: root.socketPath
-        connected: true
+        // Retry forever: the bar may load before the daemon has bound the
+        // socket (boot race), and the daemon may restart while the bar is
+        // up. Quickshell's Socket does NOT retry on its own.
         parser: SplitParser { onRead: function(line) { root.handleLine(line) } }
+        Component.onCompleted: if (!root.mock) micSock.connected = true
+        onConnectedChanged: {
+            if (root.mock) return
+            if (connected) reconnectTimer.stop()
+            else reconnectTimer.restart()
+        }
+    }
+
+    Timer {
+        id: reconnectTimer
+        interval: 2000
+        repeat: true
+        running: false
+        onTriggered: micSock.connected = true
     }
 
     // ------------------------------------------------------------------
