@@ -161,10 +161,12 @@ Panel {
                 // border visible (instead of overflowing past the card edge).
                 width: scroll.width
                 spacing: Style.space(12)
-                leftPadding: Style.space(14)
-                rightPadding: Style.space(14)
-                topPadding: Style.space(14)
-                bottomPadding: Style.space(14)
+                // The card already insets its content by the popup padding, so
+                // this Column spans the viewport (scroll.width) exactly and MUST
+                // NOT add its own horizontal padding: a child sized to
+                // parent.width would otherwise overflow past the card's right
+                // edge and put each field's right border flush at the dialog's
+                // rim instead of neatly inset.
 
                 // ---------- header / actions ----------
                 RowLayout {
@@ -381,23 +383,21 @@ Panel {
         signal changed(string v)
         width: parent ? parent.width : 320
         spacing: Style.space(8)
-        // Fixed label column so the dropdown below stretches to fill the rest
-        // of the row and lines up with the dialog field's right edge.
+        // Label takes the leftover space; the field is its natural dropdown
+        // width, so it reads as a distinct control on the right rather than
+        // being pushed right up against the label.
         Text {
             text: dro.label
             color: Color.foreground
-            opacity: 0.8
+            opacity: 0.75
             font.family: Style.font.family
             font.pixelSize: Style.font.body
-            width: Style.space(92)
+            Layout.fillWidth: true
             elide: Text.ElideRight
             verticalAlignment: Text.AlignVCenter
         }
         Dropdown {
             id: dd
-            // Fill the remaining row width so the input is aligned with the
-            // field instead of keeping its short default width.
-            Layout.fillWidth: true
             options: dro.options
             value: dro.value
             onChanged: function(v) { dro.changed(v) }
