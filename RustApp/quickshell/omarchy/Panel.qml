@@ -166,7 +166,10 @@ Panel {
                 // NOT add its own horizontal padding: a child sized to
                 // parent.width would otherwise overflow past the card's right
                 // edge and put each field's right border flush at the dialog's
-                // rim instead of neatly inset.
+                // rim instead of neatly inset. Vertical padding is harmless
+                // (does not affect width) and keeps rows off the edges.
+                topPadding: Style.space(14)
+                bottomPadding: Style.space(14)
 
                 // ---------- header / actions ----------
                 RowLayout {
