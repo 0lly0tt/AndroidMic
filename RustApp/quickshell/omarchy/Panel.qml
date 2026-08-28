@@ -147,7 +147,7 @@ Panel {
         Flickable {
             id: scroll
             anchors.fill: parent
-            contentWidth: width
+            contentWidth: scroll.width
             contentHeight: col.implicitHeight
             clip: true
             boundsBehavior: Flickable.StopAtBounds
@@ -155,7 +155,11 @@ Panel {
 
             Column {
                 id: col
-                width: panel.contentWidth
+                // The card has padding, so the scroll viewport is narrower
+                // than panel.contentWidth. Bind col to the viewport width so
+                // dropdown fields fit inside the dialog and keep their right
+                // border visible (instead of overflowing past the card edge).
+                width: scroll.width
                 spacing: Style.space(12)
                 leftPadding: Style.space(14)
                 rightPadding: Style.space(14)
