@@ -296,7 +296,27 @@ the daemon; in this Omarchy-oriented layout the **bar widget only** is expected.
 
 ---
 
-## 10. Manual run (no systemd)
+## 10. Known issues / bug report
+
+Open bug — **dialog input elements do not fit their fields**
+
+- **Affects:** the standalone dialog windows (`InfoWindow.qml` /
+  `SettingsWindow.qml`).
+- **Symptom:** the input elements inside the dialogs (value pickers, dropdowns,
+  sliders, buttons) are not aligned in length to their enclosing dialog fields;
+  they do not fit into the dialog box. They can exceed or mis-align the field
+  width, so the controls look broken / overflow the window.
+- **Expected behaviour (preferred fix):** the input elements should be aligned
+  in size with the dialog's field, i.e. they should be sized to fit their row.
+  The layout should be corrected **without** making the dialog larger (the
+  parent window size must stay as-is).
+- **Work-in-progress status:** this is a known cosmetic/layout bug in the
+  standalone windows; the Omarchy **bar-widget panel** (the recommended path)
+  is built on Omarchy's own controls and is not affected by this issue.
+
+---
+
+## 11. Manual run (no systemd)
 
 Without systemd the setup can be brought up manually:
 
