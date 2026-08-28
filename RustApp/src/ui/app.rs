@@ -134,6 +134,9 @@ pub struct AppState {
     pub audio_device: Option<cpal::Device>,
     pub audio_stream: Option<Stream>,
     pub audio_wave: AudioWave,
+    /// Last time a t:"wave" broadcast was sent (throttle for socket clients).
+    #[cfg(target_os = "linux")]
+    qs_last_wave: Option<std::time::Instant>,
     pub connection_state: ConnectionState,
     pub network_adapters: Vec<NetworkAdapter>,
     pub network_adapter: Option<NetworkAdapter>,
@@ -665,6 +668,8 @@ impl Application for AppState {
             audio_host,
             audio_devices,
             audio_wave: AudioWave::new(),
+            #[cfg(target_os = "linux")]
+            qs_last_wave: None,
             connection_state: ConnectionState::Default,
             network_adapters,
             network_adapter,
@@ -839,8 +844,25 @@ impl Application for AppState {
                     self.audio_wave.write_chunk(&data);
                     #[cfg(target_os = "linux")]
                     {
-                        let values: Vec<f32> = data.iter().map(|(_min, max)| *max).collect();
-                        crate::quickshell::broadcast(serde_json::json!({ "t": "wave", "data": values }));
+                        // Throttle: the QML widgets repaint at ~30 fps, and the
+                        // 64-cap broadcast channel drops on slower clients, so
+                        // there is no point in flooding it per audio chunk.
+                        const WAVE_MIN_INTERVAL: std::time::Duration =
+                            std::time::Duration::from_millis(33);
+                        let now = std::time::Instant::now();
+                        let due = match self.qs_last_wave {
+                            Some(t) => now.duration_since(t) >= WAVE_MIN_INTERVAL,
+                            None => true,
+                        };
+                        if due {
+                            self.qs_last_wave = Some(now);
+                            let values: Vec<f32> =
+                                data.iter().map(|(_min, max)| *max).collect();
+                            crate::quickshell::broadcast(serde_json::json!({
+                                "t": "wave",
+                                "data": values
+                            }));
+                        }
                     }
                 }
                 StreamerMsg::Ready(sender) => {
