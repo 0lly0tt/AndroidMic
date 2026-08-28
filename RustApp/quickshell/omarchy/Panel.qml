@@ -248,7 +248,6 @@ Panel {
                     }
                 }
 
-                // ---------- quick settings ----------
                 PanelSeparator { width: parent.width; foreground: Color.foreground }
 
                 FontHeader { text: "AUDIO FORMAT" }
@@ -316,19 +315,6 @@ Panel {
                     options: Opt.effects.map(function(e){ return { value: e.key, label: e.label } })
                     value: root.config.post_effect
                     onChanged: function(v) { root.sendConfig("post_effect", v) }
-                }
-
-                FontHeader { text: "APP" }
-                DropdownRow {
-                    label: "Theme"
-                    options: Opt.themes.map(function(t){ return { value: t.key, label: t.label } })
-                    value: root.config.theme
-                    onChanged: function(v) { root.sendConfig("theme", v) }
-                }
-                ToggleRow {
-                    label: "Start minimized"
-                    checked: root.config.start_minimized
-                    onToggled: root.sendConfig("start_minimized", !root.config.start_minimized)
                 }
             }
         }

@@ -48,14 +48,6 @@ var effects = [
     { key: "robot", label: "Robot" }
 ]
 
-var themes = [
-    { key: "System", label: "System" },
-    { key: "Dark", label: "Dark" },
-    { key: "Light", label: "Light" },
-    { key: "HighContrastDark", label: "HighContrastDark" },
-    { key: "HighContrastLight", label: "HighContrastLight" }
-]
-
 // The full default configuration snapshot, mirroring Rust's `Config::default()`.
 var defaultConfig = {
     connection_mode: "tcp",
