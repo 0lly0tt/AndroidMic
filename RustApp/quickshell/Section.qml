@@ -4,15 +4,14 @@ import QtQuick.Layouts
 import "Theme.js" as Theme
 
 // A titled settings card. Children declared inside it are laid out
-// vertically below a section header. Width fills its parent so the section
-// (and its controls) align to the dialog field.
+// vertically (honouring Layout.fillWidth) below a section header.
 Item {
     id: root
 
     property string title: ""
 
+    implicitWidth: 440
     implicitHeight: content.implicitHeight + 30
-    width: parent ? parent.width : 0
 
     Rectangle {
         anchors.fill: parent

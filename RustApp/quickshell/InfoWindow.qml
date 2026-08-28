@@ -15,10 +15,8 @@ FloatingWindow {
     readonly property var cfg: model ? model.config : null
 
     color: "transparent"
-    // The dialog is sized by its content; the outer Rectangle (below) sets its
-    // own fixed width, so drive the window from that same geometry.
-    width: 420
-    height: contentColumn.implicitHeight + 36
+    implicitWidth: content.implicitWidth
+    implicitHeight: content.implicitHeight
     visible: model ? model.infoVisible : false
 
     function close() {

@@ -50,21 +50,16 @@ FloatingWindow {
             }
 
             Flickable {
-                id: sview
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 clip: true
-                contentWidth: sview.width
+                contentWidth: width
                 contentHeight: col.implicitHeight
                 boundsBehavior: Flickable.StopAtBounds
 
                 Column {
                     id: col
-                    // Match the scrollable's viewport width (not the window
-                    // width, which is larger than the inner column), so the
-                    // sections and their controls align to the dialog field
-                    // instead of overflowing horizontally.
-                    width: sview.width
+                    width: root.width - 20
                     spacing: 10
 
                     // ---------------- audio format ----------------
