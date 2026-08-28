@@ -118,11 +118,22 @@ async fn handle_client(
     // Writer task: drain the broadcast channel into the client socket.
     let mut writer = wr;
     tokio::spawn(async move {
-        while let Ok(line) = rx.recv().await {
-            if writer.write_all(line.as_bytes()).await.is_err()
-                || writer.write_all(b"\n").await.is_err()
-            {
-                break;
+        loop {
+            match rx.recv().await {
+                Ok(line) => {
+                    if writer.write_all(line.as_bytes()).await.is_err()
+                        || writer.write_all(b"\n").await.is_err()
+                    {
+                        break;
+                    }
+                }
+                Err(broadcast::error::RecvError::Lagged(n)) => {
+                    // Too slow to keep up (e.g. wave spam): skip the dropped
+                    // messages but keep the client alive.
+                    warn!("quickshell: client too slow, skipped {n} messages");
+                    continue;
+                }
+                Err(_) => break, // channel closed
             }
         }
     });
