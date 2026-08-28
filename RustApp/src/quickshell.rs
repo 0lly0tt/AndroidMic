@@ -1,12 +1,11 @@
 //! Linux bridge between the AndroidMic core and the Quickshell GUI.
 //!
-//! In `--quickshell` mode the cosmic windows are not opened. Instead we:
-//!  * register a StatusNotifierItem (system tray) so the app lives in the
-//!    desktop tray, and
-//!  * expose the app state over a Unix socket (`$XDG_RUNTIME_DIR/android-mic.qsock`)
-//!    using newline-delimited JSON, the wire protocol documented in
-//!    `quickshell/README.md`. The Quickshell shell extension connects to this
-//!    socket to render the info + settings dialogs and controls the app.
+//! In `--quickshell` mode the cosmic windows are not opened. Instead we expose
+//! the app state over a Unix socket (`$XDG_RUNTIME_DIR/android-mic.qsock`) using
+//! newline-delimited JSON, the wire protocol documented in `quickshell/README.md`.
+//! The Quickshell bar-widget connects to this socket to render the info +
+//! settings dialogs and controls the app. There is no system-tray icon: the bar
+//! widget is the GUI.
 
 use std::sync::OnceLock;
 use tokio::{
@@ -70,9 +69,8 @@ pub fn subscribe() -> impl futures::Stream<Item = QuickCmd> {
         // Publish the senders the rest of the app uses.
         let _ = OUT_TX.set(out_tx.clone());
 
-        // Start the Unix socket server and the system tray.
+        // Start the Unix socket server (the bar widget is the GUI; no tray).
         tokio::spawn(run_server(out_tx.clone(), cmd_tx.clone()));
-        start_tray(out_tx, cmd_tx.clone());
 
         while let Some(cmd) = cmd_rx.recv().await {
             yield cmd;
@@ -173,133 +171,6 @@ fn parse_command(line: &str) -> Option<QuickCmd> {
     })
 }
 
-// ---------------------------------------------------------------- system tray
-// A StatusNotifierItem (ksni). Pure D-Bus, no GTK/glib, works on any thread
-// and on Wayland/omarchy trays — unlike the GTK-based `tray-icon` crate which
-// crashed with "GTK has not been initialized" when created on a worker thread.
-
-fn load_tray_pixmap() -> Vec<ksni::Icon> {
-    let svg = include_bytes!("../res/icons/icon.svg");
-    let opts = resvg::usvg::Options::default();
-    let tree = match resvg::usvg::Tree::from_data(svg, &opts) {
-        Ok(t) => t,
-        Err(e) => {
-            warn!("quickshell: can't decode tray icon: {e}");
-            return Vec::new();
-        }
-    };
-    let vb = tree.size();
-    let (w, h) = (32u32, 32u32);
-    let mut pixmap = match resvg::tiny_skia::Pixmap::new(w, h) {
-        Some(p) => p,
-        None => return Vec::new(),
-    };
-    resvg::render(
-        &tree,
-        resvg::tiny_skia::Transform::from_scale(
-            w as f32 / vb.width(),
-            h as f32 / vb.height(),
-        ),
-        &mut pixmap.as_mut(),
-    );
-
-    // resvg yields premultiplied RGBA8; ksni wants ARGB32 network byte order.
-    let rgba = pixmap.data();
-    let mut argb = Vec::with_capacity(rgba.len());
-    for px in rgba.chunks_exact(4) {
-        argb.extend_from_slice(&[px[3], px[0], px[1], px[2]]);
-    }
-    vec![ksni::Icon { width: w as i32, height: h as i32, data: argb }]
-}
-
-struct QuickTray {
-    out_tx: broadcast::Sender<String>,
-    cmd_tx: mpsc::Sender<QuickCmd>,
-    icon_pixmap: Vec<ksni::Icon>,
-}
-
-impl ksni::Tray for QuickTray {
-    fn id(&self) -> String {
-        "androidmic-quickshell".into()
-    }
-
-    fn title(&self) -> String {
-        "AndroidMic".into()
-    }
-
-    fn icon_pixmap(&self) -> Vec<ksni::Icon> {
-        self.icon_pixmap.clone()
-    }
-
-    fn menu(&self) -> Vec<ksni::MenuItem<Self>> {
-        use ksni::menu::StandardItem;
-        use ksni::MenuItem;
-
-        vec![
-            StandardItem {
-                label: "Open".into(),
-                activate: Box::new(|this: &mut Self| {
-                    let _ = this.out_tx.send(r#"{"t":"open","which":"info"}"#.to_string());
-                }),
-                ..Default::default()
-            }
-            .into(),
-            StandardItem {
-                label: "Settings".into(),
-                activate: Box::new(|this: &mut Self| {
-                    let _ = this.out_tx.send(r#"{"t":"open","which":"settings"}"#.to_string());
-                }),
-                ..Default::default()
-            }
-            .into(),
-            MenuItem::Separator,
-            StandardItem {
-                label: "Connect".into(),
-                activate: Box::new(|this: &mut Self| {
-                    let _ = this.cmd_tx.try_send(QuickCmd::Connect);
-                }),
-                ..Default::default()
-            }
-            .into(),
-            StandardItem {
-                label: "Disconnect".into(),
-                activate: Box::new(|this: &mut Self| {
-                    let _ = this.cmd_tx.try_send(QuickCmd::Stop);
-                }),
-                ..Default::default()
-            }
-            .into(),
-            MenuItem::Separator,
-            StandardItem {
-                label: "Exit".into(),
-                activate: Box::new(|this: &mut Self| {
-                    let _ = this.cmd_tx.try_send(QuickCmd::Exit);
-                }),
-                ..Default::default()
-            }
-            .into(),
-        ]
-    }
-}
-
-fn start_tray(out_tx: broadcast::Sender<String>, cmd_tx: mpsc::Sender<QuickCmd>) {
-    let pixmap = load_tray_pixmap();
-    let fut = async move {
-        let tray = QuickTray {
-            out_tx,
-            cmd_tx,
-            icon_pixmap: pixmap,
-        };
-        use ksni::TrayMethods;
-        match tray.disable_dbus_name(false).spawn().await {
-            Ok(_handle) => info!("quickshell: tray visible"),
-            Err(e) => warn!("quickshell: can't show tray: {e}"),
-        }
-        // Never resolve: keep owning the SNI service for the process lifetime.
-        std::future::pending::<()>().await;
-    };
-    tokio::spawn(fut);
-}
 // ------------------------------------------------------- wire format helpers
 // Canonical string forms shared by the daemon, snapshot and command parsing.
 
