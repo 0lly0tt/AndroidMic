@@ -1,0 +1,15 @@
+[Unit]
+Description=Set phone virtual mic as default PulseAudio source
+# PipeWire publishes a Pulse socket; start after it is available
+After=pipewire.service pipewire.socket wireplumber.service
+Wants=pipewire.socket wireplumber.service
+PartOf=graphical-session.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# Installed to the user config by install-systemd.sh.
+ExecStart=/usr/bin/sh -c 'for i in $(seq 1 30); do pactl info >/dev/null 2>&1 && break; sleep 1; done; pactl set-default-source virtual_mic.monitor'
+
+[Install]
+WantedBy=default.target

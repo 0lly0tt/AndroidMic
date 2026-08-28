@@ -1,0 +1,14 @@
+[Unit]
+Description=Create persistent phone (AndroidMic) virtual microphone and set it as default source
+# PipeWire publishes a Pulse socket; wait until it is running
+After=pipewire.service pipewire.socket wireplumber.service pulseaudio.service
+Wants=pipewire.socket wireplumber.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# Installed to the user config by install-systemd.sh (path is %h-resolved).
+ExecStart=%h/.config/systemd/user/androidmic-virtual-mic.sh
+
+[Install]
+WantedBy=default.target

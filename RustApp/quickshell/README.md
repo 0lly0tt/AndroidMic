@@ -104,6 +104,27 @@ error for a widget whose file changed at a previous load.
 | `Mock.js` | simulated backend |
 | `res/app_icon.svg` | app icon |
 
+## systemd autostart
+
+`install-systemd.sh` installs and enables three user units (into
+`~/.config/systemd/user/`):
+
+| unit | purpose |
+|------|---------|
+| `androidmic-daemon.service` | the headless `--quickshell` daemon (socket) — `graphical-session.target` |
+| `androidmic-virtual-mic.service` | creates the `virtual_mic` null sink + `virtual_mic_source` (via `androidmic-virtual-mic.sh`) — `default.target` |
+| `androidmic-default-source.service` | sets `virtual_mic.monitor` as the default record source — `default.target` |
+
+```sh
+./install-systemd.sh            # install binary + all three units, enable them
+./install-systemd.sh /path/to/android-mic   # explicit binary path
+```
+
+The daemon unit needs a binary; the two virtual-mic units don't (they only need
+`pactl`). If you leave the binary path default the script uses
+`target/release/android-mic`.
+
+
 ## Wire protocol
 
 The Rust daemon listens on a Unix socket and speaks newline-delimited JSON.
