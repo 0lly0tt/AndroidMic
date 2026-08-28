@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "AndroidMic",
+  "project_id": "99030897-6b60-4ef0-a0a6-5355d6a85cb5"
+}
