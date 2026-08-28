@@ -1,10 +1,28 @@
 # AndroidMic on Omarchy — tray-less, bar-widget setup
 
-This documents the **Omarchy-oriented** way to run AndroidMic: as a **headless
-daemon** (no desktop window) controlled from a **system-bar widget** and a
-**virtual-mic audio cable**. It is the result of reworking the stock app to fit
-a minimal, always-in-the-bar desktop. It explains *what* changed, *why*, and
-exactly how to reproduce the setup on any machine.
+**[AndroidMic](https://github.com/teamclouday/AndroidMic) is a nice and simple
+way to use an Android phone as a microphone input on a PC desktop — all credit
+for the core idea and the original application goes to its makers.**
+
+This document, however, describes a **single-time rework** of that original app,
+produced **in full by an AI assistant**. It exists for people who would rather
+run AndroidMic as a **headless daemon** (no desktop window) controlled from a
+**system-bar widget** and a **virtual-mic audio cable**, instead of having a
+functional-looking application window sit in front of everything.
+
+The rework is **deliberately a snapshot, not a maintained fork**:
+- It was reworked **once**, 100% by AI, and is **not** kept in sync with the
+  upstream project. There is no claim that later upstream changes or fixes will
+  arrive here.
+- It may therefore be **already outdated** relative to the current original.
+- **Security is the responsibility of the operator**: any newly discovered
+  issues, dependency updates, or other maintenance for this reworked branch
+  must be handled by the user themselves. If this matters, prefer the
+  [maintained upstream application](https://github.com/teamclouday/AndroidMic)
+  instead.
+
+This document explains *what* changed, *why*, and exactly how to reproduce the
+setup on any machine.
 
 - What and why changed is explained below.
 - For the bare commands, jump to **Build** and **Setup**.
