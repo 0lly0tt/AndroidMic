@@ -374,17 +374,23 @@ Panel {
         signal changed(string v)
         width: parent ? parent.width : 320
         spacing: Style.space(8)
+        // Fixed label column so the dropdown below stretches to fill the rest
+        // of the row and lines up with the dialog field's right edge.
         Text {
             text: dro.label
             color: Color.foreground
-            opacity: 0.75
+            opacity: 0.8
             font.family: Style.font.family
             font.pixelSize: Style.font.body
-            Layout.fillWidth: true
+            width: Style.space(92)
             elide: Text.ElideRight
+            verticalAlignment: Text.AlignVCenter
         }
         Dropdown {
             id: dd
+            // Fill the remaining row width so the input is aligned with the
+            // field instead of keeping its short default width.
+            Layout.fillWidth: true
             options: dro.options
             value: dro.value
             onChanged: function(v) { dro.changed(v) }
