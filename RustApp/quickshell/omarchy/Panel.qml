@@ -45,13 +45,16 @@ Panel {
     property real mockPhase: 0
 
     function sendCmd(cmd) {
-        micSock.write(JSON.stringify({ cmd: cmd }) + "\n")
+        if (root.micSock && root.micSock.connected)
+            root.micSock.write(JSON.stringify({ cmd: cmd }) + "\n")
     }
     function sendConfig(key, value) {
-        micSock.write(JSON.stringify({ cmd: "config", key: key, value: value }) + "\n")
+        if (root.micSock && root.micSock.connected)
+            root.micSock.write(JSON.stringify({ cmd: "config", key: key, value: value }) + "\n")
     }
     function sendDevice(id) {
-        micSock.write(JSON.stringify({ cmd: "device", value: id }) + "\n")
+        if (root.micSock && root.micSock.connected)
+            root.micSock.write(JSON.stringify({ cmd: "device", value: id }) + "\n")
     }
     function accumulateWave(data) {
         if (!data || !data.length) return
@@ -98,28 +101,51 @@ Panel {
         root.open()
     }
 
-    Socket {
-        id: micSock
-        path: root.socketPath
-        // Retry forever: the bar may load before the daemon has bound the
-        // socket (boot race), and the daemon may restart while the bar is
-        // up. Quickshell's Socket does NOT retry on its own.
-        parser: SplitParser { onRead: function(line) { root.handleLine(line) } }
-        Component.onCompleted: if (!root.mock) micSock.connected = true
-        onConnectedChanged: {
-            if (root.mock) return
-            if (connected) reconnectTimer.stop()
-            else reconnectTimer.restart()
+    // Self-healing socket client. The daemon may bind the socket AFTER this
+    // panel loads (boot race: wgpu init delays binding by seconds) and may
+    // restart while the bar is up. Quickshell's Socket does NOT retry on its
+    // own: a failed connect leaves a stale QLocalSocket behind (connected
+    // stays false and onConnectedChanged never fires — the socket was never
+    // connected), and re-setting `connected = true` on it is a no-op. So each
+    // attempt DESTROYS and RECREATES the Socket instead of toggling it.
+    property var micSock: null
+
+    Component {
+        id: micSockComponent
+        Socket {
+            path: root.socketPath
+            parser: SplitParser { onRead: function(line) { root.handleLine(line) } }
+            onConnectedChanged: {
+                if (connected) reconnectTimer.stop()
+                else reconnectTimer.start()
+            }
         }
+    }
+
+    function connectSocket() {
+        if (root.micSock) {
+            root.micSock.destroy()
+            root.micSock = null
+        }
+        root.micSock = micSockComponent.createObject(root)
+        root.micSock.connected = true
     }
 
     Timer {
         id: reconnectTimer
-        interval: 2000
+        interval: 1000
         repeat: true
-        running: false
-        onTriggered: micSock.connected = true
+        running: true
+        onTriggered: {
+            if (root.micSock && root.micSock.connected) {
+                reconnectTimer.stop()
+                return
+            }
+            root.connectSocket()
+        }
     }
+
+    Component.onCompleted: if (!root.mock) root.connectSocket()
 
     // ------------------------------------------------------------------
     // Bar button

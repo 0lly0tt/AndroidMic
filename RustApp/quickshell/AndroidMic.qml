@@ -62,15 +62,15 @@ Item {
     // ---------- outbound commands ----------
     function sendCmd(cmd) {
         if (root.mock) { root.applyServerMessages(Mock.runCommand(root.mockState, { cmd: cmd })); return }
-        sock.write(JSON.stringify({ cmd: cmd }) + "\n")
+        if (root.sock && root.sock.connected) root.sock.write(JSON.stringify({ cmd: cmd }) + "\n")
     }
     function sendConfig(key, value) {
         if (root.mock) { if (root.mockState) root.applyServerMessages(Mock.runCommand(root.mockState, { cmd: "config", key: key, value: value })); return }
-        sock.write(JSON.stringify({ cmd: "config", key: key, value: value }) + "\n")
+        if (root.sock && root.sock.connected) root.sock.write(JSON.stringify({ cmd: "config", key: key, value: value }) + "\n")
     }
     function sendDevice(id) {
         if (root.mock) { if (root.mockState) root.applyServerMessages(Mock.runCommand(root.mockState, { cmd: "device", value: id })); return }
-        sock.write(JSON.stringify({ cmd: "device", value: id }) + "\n")
+        if (root.sock && root.sock.connected) root.sock.write(JSON.stringify({ cmd: "device", value: id }) + "\n")
     }
     function openAbout() { root.infoVisible = true }
 
@@ -113,31 +113,54 @@ Item {
     }
 
     // ---------- socket ----------
-    Socket {
-        id: sock
-        path: root.socketPath
-        // Retry forever: the daemon may not be up yet (boot race) or may
-        // have restarted while this window was open. Quickshell's Socket
-        // does NOT retry on its own.
-        parser: SplitParser { onRead: function(line) { root.handleLine(line) } }
-        onConnectedChanged: {
-            if (connected) {
-                reconnectTimer.stop()
-                root.logMessage("info", "connected to daemon")
-                Qt.callLater(function() { root.infoVisible = true })
-            } else if (!root.mock) {
-                reconnectTimer.restart()
+    // Self-healing socket client. The daemon may bind the socket AFTER this
+    // controller loads (boot race: wgpu init delays binding by seconds) and
+    // may restart while the window is open. Quickshell's Socket does NOT
+    // retry on its own: a failed connect leaves a stale QLocalSocket behind
+    // (connected stays false and onConnectedChanged never fires — the socket
+    // was never connected), and re-setting `connected = true` on it is a
+    // no-op. So each attempt DESTROYS and RECREATES the Socket instead of
+    // toggling it.
+    property var sock: null
+
+    Component {
+        id: sockComponent
+        Socket {
+            path: root.socketPath
+            parser: SplitParser { onRead: function(line) { root.handleLine(line) } }
+            onConnectedChanged: {
+                if (connected) {
+                    reconnectTimer.stop()
+                    root.logMessage("info", "connected to daemon")
+                    Qt.callLater(function() { root.infoVisible = true })
+                } else if (!root.mock) {
+                    reconnectTimer.start()
+                }
             }
         }
-        Component.onCompleted: if (!root.mock) sock.connected = true
+    }
+
+    function connectSocket() {
+        if (root.sock) {
+            root.sock.destroy()
+            root.sock = null
+        }
+        root.sock = sockComponent.createObject(root)
+        root.sock.connected = true
     }
 
     Timer {
         id: reconnectTimer
-        interval: 2000
+        interval: 1000
         repeat: true
-        running: false
-        onTriggered: sock.connected = true
+        running: true
+        onTriggered: {
+            if (root.sock && root.sock.connected) {
+                reconnectTimer.stop()
+                return
+            }
+            root.connectSocket()
+        }
     }
 
     // ---------- mock backend ----------
@@ -187,5 +210,6 @@ Item {
     Component.onCompleted: {
         root.instanceId = Quickshell.env("ANDROIDMIC_QS_INSTANCE") || "main"
         if (root.mock) root.startMock()
+        else root.connectSocket()
     }
 }
