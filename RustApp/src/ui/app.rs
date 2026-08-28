@@ -152,6 +152,9 @@ pub struct AppState {
     pub system_tray_stream: Option<SystemTrayStream>,
     has_shown_minimize_notification: bool,
     launched_automatically: bool,
+    /// Headless Quickshell mode: waveform feeds are wanted even though the
+    /// cosmic main window does not exist.
+    quickshell_mode: bool,
 }
 
 pub struct CustomWindow {
@@ -175,7 +178,7 @@ impl AppState {
                 self.send_command(StreamerCommand::ReconfigureStream {
                     buff: producer,
                     audio_params: AudioProcessParams::new(audio_config, config),
-                    is_window_visible: self.main_window.is_some(),
+                    is_window_visible: self.main_window.is_some() || self.quickshell_mode,
                 });
 
                 Task::none()
@@ -258,7 +261,7 @@ impl AppState {
             connect_options,
             buff: producer,
             audio_params: AudioProcessParams::new(audio_config, config),
-            is_window_visible: self.main_window.is_some(),
+            is_window_visible: self.main_window.is_some() || self.quickshell_mode,
         });
 
         Task::none()
@@ -685,6 +688,7 @@ impl Application for AppState {
             system_tray_stream,
             has_shown_minimize_notification: false,
             launched_automatically: flags.launched_automatically,
+            quickshell_mode: quickshell_mode,
         };
 
         commands
