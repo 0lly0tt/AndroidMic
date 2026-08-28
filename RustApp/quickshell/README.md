@@ -65,6 +65,10 @@ Controls` and `Quickshell` modules.
 
 ## Omarchy bar-widget
 
+> **You want the full step-by-step for an Omarchy setup (build, systemd,
+> virtual mic, speaker/device wiring, OS-fit & limitations)? See
+> [README-OMARCHY.md](README-OMARCHY.md).**
+
 `omarchy/` is a **bar-widget plugin** for [Omarchy](https://omarchy.org): a
 mic button in the bar that opens the stream status + audio settings in a
 theme-native panel (waveform, connect/disconnect, settigs), talking to the
